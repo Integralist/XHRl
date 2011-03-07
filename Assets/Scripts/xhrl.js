@@ -38,6 +38,7 @@
 		 * 
 		 */
 		xhr: (function() {
+
 			// Create local variable which will cache the results of this function
 			var xhr;
 			
@@ -63,10 +64,10 @@
 		}()),
 		
 		/**
-		 * A basic AJAX method to abstract browser inconsistencies.
+		 * A basic AJAX method.
 		 * 
 		 * @param settings { Object } user configuration
-		 * @return undefined { no explicitly returned value }
+		 * @return undefined {  } no explicitly returned value
 		 */
 	 	ajax: function( settings ){
 	 	
@@ -75,12 +76,21 @@
 	 		
 	 		// Load the config object with defaults, if no values were provided by the user
 			config = {
+				// This is used to determine how big the stach array needs to be
+				length: settings.length || 1,
+				
 				// The URL the request will be made to
 				url: settings.url || false,
 				
 				// the default directory path
 				base: settings.base || 'Assets/Scripts/'
 			};
+			
+			// If we splice with an empty array then the re-insertions (dependancy order) break
+			// We need the array to have the same number of elments as scripts being processed for loading
+			if (config.length > 1) {
+				XHRl.stack.length = config.length;
+			}
 			
 			// Create new cross-browser XMLHttpRequest instance
 			xhr = this.xhr();
@@ -124,12 +134,28 @@
 			function onError(err){
 				throw new Error("XHR statusText = " + err.statusText);
 			}
-				
+			
 			// xhr is direct access to the XMLHttpRequest object itself
 			// e.g. console.log(xhr);
-			function onSuccess(xhr){
-				// Because we have to be careful with dependancy order we store response data in the order scripts were specified
-				XHRl.stack.push(xhr.responseText);
+			function onSuccess(xhr) {
+				// Because we have to be careful with dependancy order we queue scripts in the order specified
+				// We do this by passing in a reference number (settings.counter) which we use to push the returned script data into a stack Array
+				// We can't store settings.counter in the config object as that is cached and so ends up just equal to the last index value
+				if (XHRl.stack.length > 1) {
+					// We don't want to splice with a 2nd argument of 1 if it's the last script to be processed (because we will end up removing the script we just inserted!)
+					if (settings.counter == (XHRl.stack.length-1)) {
+						XHRl.stack.splice(settings.counter, 0, xhr.responseText);
+					} else {
+						// Because we have set a length onto the Array to being with, it has a set of 'undefined' items
+						// The splice method allows us to insert our scripts into the Array but will remove the Array item following it because it'll be an 'undefined' item
+						XHRl.stack.splice(settings.counter, 1, xhr.responseText);
+					}
+				}
+				else {
+					// If there is only one script to be processed then we simply splice it by zero and leave it
+					XHRl.stack.splice(settings.counter, 0, xhr.responseText);
+				}
+				
 			}
 			
 			// Watch for when the state of the document gets updated
@@ -139,7 +165,7 @@
 					// Check to see if the request was successful
 					if ( httpSuccess(xhr) ) {
 						// Execute the success callback
-						onSuccess( xhr );
+						onSuccess(xhr);
 					}
 					// Otherwise, an error occurred, so execute the error callback
 					else {
@@ -171,17 +197,16 @@
 			else if (!config.url) {
 				throw new Error("You need to provide a URL for a JavaScript file to be loaded by the 'xhrl' script loader");
 			}
-			//
+			// If an Array of URLs has been passed then we need to process each Array item individually (and then later we can execute in the correct order)
 			else if(Object.prototype.toString.call(config.url) === '[object Array]') {
 				// Loop through Array accessing the specified scripts
 				for (var i = 0, len = config.url.length; i < len; i++) {
 					// Call the ajax function individually for each script specified (pass back through the corresponding settings)
 					this.ajax({ 
+						length: len, // used to help with the Array Splice method (for keeping dependancy order)
+						counter: i, // used for keeping dependancy order
 						url: config.url[i], 
-						base: config.base, 
-						timeout: config.timeout, 
-						onError: config.onError, 
-						onSuccess: config.onSuccess 
+						base: config.base
 					});
 				}
 			} 

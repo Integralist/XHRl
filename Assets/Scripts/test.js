@@ -1,0 +1,1 @@
+alert('im the test.js file');
