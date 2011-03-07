@@ -76,7 +76,7 @@
 	 		
 	 		// Load the config object with defaults, if no values were provided by the user
 			config = {
-				// This is used to determine how big the stach array needs to be
+				// This is used to determine how big the stack array needs to be
 				length: settings.length || 1,
 				
 				// The URL the request will be made to
@@ -87,7 +87,7 @@
 			};
 			
 			// If we splice with an empty array then the re-insertions (dependancy order) break
-			// We need the array to have the same number of elments as scripts being processed for loading
+			// We need the array to have the same number of elements as scripts being processed for loading
 			if (config.length > 1) {
 				XHRl.stack.length = config.length;
 			}
@@ -141,12 +141,14 @@
 				// Because we have to be careful with dependancy order we queue scripts in the order specified
 				// We do this by passing in a reference number (settings.counter) which we use to push the returned script data into a stack Array
 				// We can't store settings.counter in the config object as that is cached and so ends up just equal to the last index value
+				
+				// Make sure that the number of scripts being loaded is greater than one
 				if (XHRl.stack.length > 1) {
 					// We don't want to splice with a 2nd argument of 1 if it's the last script to be processed (because we will end up removing the script we just inserted!)
 					if (settings.counter == (XHRl.stack.length-1)) {
 						XHRl.stack.splice(settings.counter, 0, xhr.responseText);
 					} else {
-						// Because we have set a length onto the Array to being with, it has a set of 'undefined' items
+						// Because we have set a length onto the Array to start off with, this means it will automatically have a set of 'undefined' items
 						// The splice method allows us to insert our scripts into the Array but will remove the Array item following it because it'll be an 'undefined' item
 						XHRl.stack.splice(settings.counter, 1, xhr.responseText);
 					}

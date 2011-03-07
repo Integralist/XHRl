@@ -8,16 +8,19 @@ AJAX based Script Loader.
 
 Reasons for building 'yet another' dynamic script loader:
 
-* Wanted to learn how to do it
-* Wanted to avoid typical browser sniffs used to keep execution order (e.g. LABjs)
-* Wanted to avoid using hacks (such as http://www.phpied.com/preload-then-execute/) which I've seen used in a few script loaders (e.g. Head.js, Control.js, YepNope.js).
+* I wanted to learn how to write one myself
+* I wanted a script loader that actually informed the developer of errors! (aka jQuery which cryptically hides errors)
+* I wanted to avoid typical browser sniffs used to keep execution order (e.g. LABjs)
+* I wanted to avoid using hacks ([such as...](http://www.phpied.com/preload-then-execute/)) - used in a few script loaders.
 
 Disclaimer
 ----------
 
-I wrote this script not to compete with anyone, but to learn something.
+I wrote this script not to compete with any of the existing script loaders, but to learn something new by the virtue of trying to build one for myself.
 
-I still highly recommend that if you need a dynamic script loader then you try any of the following. But just so you know, my main 'go to' script loader of choice is LABjs. It's got some awesome features such as 'conditional loading' and out of all the script loaders I've seen and looked into it has been the most thoroughly thought out and worked on script loader available today (as far as browser inconsistencies and reasons for choosing certain methods to achieve the desired results).
+I still highly recommend LABjs (or any of the other dynamic script loaders listed below). 
+
+Just so you know, my main 'go to' script loader of choice is LABjs. It's got some awesome features (such as 'conditional loading'), and out of all the script loaders I've seen and looked into it has been the most thoroughly thought out and worked on script loader available today (as far as browser inconsistencies and reasons for choosing certain methods to achieve the desired results that is).
 
 * [LABjs](https://github.com/getify/LABjs)
 * [YepNope.js](https://github.com/SlexAxton/yepnope.js)
