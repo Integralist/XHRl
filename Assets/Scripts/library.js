@@ -1,1 +1,1 @@
-alert('Has jQuery has been loaded? \n' + jQuery);
+alert('Has jQuery been loaded? \n' + jQuery);

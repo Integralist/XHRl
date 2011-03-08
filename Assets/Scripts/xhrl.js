@@ -33,6 +33,15 @@
 		
 		// Errors
 		errors: [],
+		
+		// Length of the stack, used to check whether all scripts were successfully loaded
+		stack_length: null,
+		
+		// Timer for checking when all scripts are loaded
+		timer: null,
+		
+		// Another timer which cancels the first 'timer' (so once all ajax calls are made the scripts have x seconds to load)
+		timeout: null,
 	
 		/**
 		 * 
@@ -131,8 +140,9 @@
 			}
 			
 			// Throw a corresponding error when there is a problem loading the specified JavaScript file
-			function onError(err){
-				throw new Error("XHR statusText = " + err.statusText);
+			function onError(xhr){
+				XHRl.errors.push(url + " { failed } ");
+				throw new Error("XHR statusText = " + xhr.statusText);
 			}
 			
 			// xhr is direct access to the XMLHttpRequest object itself
@@ -190,19 +200,39 @@
 
 		},
 		
+		check: function(){
+			if ( /* scripts successfully loaded */ ) {
+				// then clearInterval(XHRl.timer);
+				// then start to insert scripts into the DOM
+			}
+		},
+		
 		load: function(config){
+			// Cache object lookup
+			var self = this,
+				 stack = this.stack,
+				 stacklen = this.stack_length,
+				 seconds_until_timeout;
+			
 			// If no object was passed through then show corresponding error...
 	 		if (typeof config === "undefined") {
 				throw new Error("You have not complied with the provided API. You need to provide a 'configuration' object literal - please check the documentation!");
 			} 
+			
 			// If no URL was specified then throw a corresponding error...
 			else if (!config.url) {
 				throw new Error("You need to provide a URL for a JavaScript file to be loaded by the 'xhrl' script loader");
 			}
+			
 			// If an Array of URLs has been passed then we need to process each Array item individually (and then later we can execute in the correct order)
 			else if(Object.prototype.toString.call(config.url) === '[object Array]') {
+			
+				// Keep reference to length of the Array of URLs being passed in
+				stacklen = this.stack_length = config.url.length;
+			
 				// Loop through Array accessing the specified scripts
-				for (var i = 0, len = config.url.length; i < len; i++) {
+				for (var i = 0, len = stacklen; i < len; i++) {
+										
 					// Call the ajax function individually for each script specified (pass back through the corresponding settings)
 					this.ajax({ 
 						length: len, // used to help with the Array Splice method (for keeping dependancy order)
@@ -210,12 +240,29 @@
 						url: config.url[i], 
 						base: config.base
 					});
+					
 				}
+				
+				// Set a timer to check at a regular interval whether the scripts are loaded
+				this.timer = this.win.setInterval(this.check, 10);
+				
+				// Calculate total script wait length (each script has 5 seconds to load)
+				seconds_until_timeout = (stacklen * 5) * 1000; // Remember! timers use milliseconds, not seconds
+				
+				// After the allocated time has passed this 'check' function will no longer be called
+				// And we'll throw the list of errors to the developer
+				this.timeout = this.win.setTimeout(function(){
+					clearInterval(self.timer);
+					throw new Error("Seems that not all of the scripts you requested to be loaded have been successful? " + XHRl.errors);
+				}, seconds_until_timeout);
+				
 			} 
+			
 			// Otherwise call ajax method and pass through configuration settings
 			else {
 				this.ajax(config);
 			}
+			
 		}
 		
 	};
