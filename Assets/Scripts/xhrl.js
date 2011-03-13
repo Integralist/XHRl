@@ -238,7 +238,7 @@
 							if (!this.errors.length) {
 								throw new Error("Looks like one of your scripts timed out.");
 							} 
-							// ...other show a generic error and see if the 'errors' log has anything that can help
+							// ...otherwise show a generic error and see if the 'errors' log has anything that can help
 							else {
 								throw new Error("Seems that not all of the scripts you requested to be loaded have been successful? \n" + this.errors);
 							}
