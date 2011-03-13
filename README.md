@@ -18,9 +18,12 @@ Disclaimer
 
 I wrote this script not to compete with any of the existing script loaders, but to learn something new by the virtue of trying to build one for myself.
 
-I still highly recommend LABjs (or any of the other dynamic script loaders listed below). 
+Just so you know, my main 'go to' script loader of choice is LABjs, and I still highly recommend it (it's got some awesome features, one of which is 'conditional loading').
 
-Just so you know, my main 'go to' script loader of choice is LABjs. It's got some awesome features (such as 'conditional loading'), and out of all the script loaders I've seen and looked into it has been the most thoroughly thought out and worked on script loader available today (as far as browser inconsistencies and reasons for choosing certain methods to achieve the desired results that is).
+Other Script Loaders
+--------------------
+
+Here's a list of other script loaders I've looked at...
 
 * [LABjs](https://github.com/getify/LABjs)
 * [YepNope.js](https://github.com/SlexAxton/yepnope.js)
