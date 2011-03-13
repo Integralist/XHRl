@@ -37,16 +37,15 @@
 		// Length of the stack, used to check whether all scripts were successfully loaded
 		stack_length: null,
 		
-		// Timer for checking when all scripts are loaded
-		timer: null,
-		
-		// Another timer which cancels the first 'timer' (so once all ajax calls are made the scripts have x seconds to load)
+		// A timer which throws an error after the allocated timeout (e.g. once all ajax calls are made, the specified scripts have 'x' seconds to load)
 		timeout: null,
 	
 		/**
+		 * XMLHttpRequest abstraction.
 		 * 
+		 * @return xhr { XMLHttpRequest|ActiveXObject } a new instance of either the native XMLHttpRequest object or the corresponding ActiveXObject
 		 */
-		xhr: (function() {
+	 	xhr: (function() {
 
 			// Create local variable which will cache the results of this function
 			var xhr;
@@ -78,7 +77,7 @@
 		 * @param settings { Object } user configuration
 		 * @return undefined {  } no explicitly returned value
 		 */
-	 	ajax: function( settings ){
+	 	ajax: function(settings) {
 	 	
 	 		// JavaScript engine will 'hoist' variables so we'll be specific and declare them here
 	 		var xhr, url, requestDone;
@@ -111,7 +110,7 @@
 			xhr.open('GET', url, true);
 			
 			// Initalize a callback which will fire in 5 seconds from now, cancelling the request (if it has not already occurred)
-			this.win.setTimeout(function(){
+			this.win.setTimeout(function() {
 				requestDone = true;
 			}, 5000);
 			
@@ -120,7 +119,7 @@
 				try {
 					// If no server status is provided, and we're actually
 					// requesting a local file, then it was successful
-					return !r.status && location.protocol == "file:" ||
+					return !r.status && location.protocol == 'file:' ||
 					
 					// Any status in the 200 range is good
 					( r.status >= 200 && r.status < 300 ) ||
@@ -129,7 +128,7 @@
 					r.status == 304 ||
 					
 					// Safari returns an empty status if the file has not been modified
-					navigator.userAgent.indexOf("Safari") >= 0 && typeof r.status == "undefined";
+					navigator.userAgent.indexOf('Safari') >= 0 && typeof r.status == 'undefined';
 				} catch(e){
 					// Throw a corresponding error
 					throw new Error("httpSuccess = " + e);
@@ -140,7 +139,7 @@
 			}
 			
 			// Throw a corresponding error when there is a problem loading the specified JavaScript file
-			function onError(xhr){
+			function onError(xhr) {
 				XHRl.errors.push(url + " { failed } ");
 				throw new Error("XHR statusText = " + xhr.statusText);
 			}
@@ -173,15 +172,15 @@
 			// Watch for when the state of the document gets updated
 			xhr.onreadystatechange = function() {
 				// Wait until the data is fully loaded, and make sure that the request hasn't already timed out
-				if ( xhr.readyState == 4 && !requestDone ) {
+				if (xhr.readyState == 4 && !requestDone) {
 					// Check to see if the request was successful
-					if ( httpSuccess(xhr) ) {
+					if (httpSuccess(xhr)) {
 						// Execute the success callback
 						onSuccess(xhr);
 					}
 					// Otherwise, an error occurred, so execute the error callback
 					else {
-						onError( xhr );
+						onError(xhr);
 					}
 					
 					// Clean up after ourselves, to avoid memory leaks
@@ -200,22 +199,104 @@
 
 		},
 		
-		check: function(){
-			if ( /* scripts successfully loaded */ ) {
-				// then clearInterval(XHRl.timer);
-				// then start to insert scripts into the DOM
+		/**
+		 * Self-executing (i.e. recursive) function which checks stack Array to see if all specified scripts have been loaded
+		 * 
+		 * @return undefined {  } no explicitly returned value, but will throw an error if any found
+		 */
+	 	check: function() {
+			// Do a quick check for any failures
+			if (this.errors.length) {
+				throw new Error("Seems there was a problem trying to load one of the provided scripts.");
+				return;
+			}
+			
+			// Cache object lookup
+			var self = this,
+				 i = this.stack_length,
+				 stack = this.stack;
+			
+			// check the stack for any scripts not yet loaded
+			while (i--) {
+				// If a script is still undefined then break out of the loop as the scripts are still downloading...
+				if (stack[i] == undefined) {
+					// Check timeout limit hasn't been reached
+					if (this.timeout !== null) {
+						// Call this function again
+						this.win.setTimeout(function() {
+							self.check();
+						}, 10);
+						
+						return;
+					} 
+					// Otherwise the timeout limit has been reached and we must show the developer a list of errors 
+					else {
+						// Does it look like a 'timeout' issue...
+						if (!this.errors.length) {
+							throw new Error("Looks like one of your scripts timed out.");
+						} 
+						// Or an a recorded error?
+						else {
+							throw new Error("Seems that not all of the scripts you requested to be loaded have been successful? \n" + this.errors);
+						}
+						return;
+					}
+				}
+			}
+			
+			// If we've reached this point it looks like all scripts are loaded and ready to be inserted into the page
+			this.insert();
+			
+		},
+		
+		/**
+		 * Inserts individual script files (in correct execution order) into the DOM.
+		 * 
+		 * @return undefined {  } no explicitly returned value
+		 */
+	 	insert: function() {
+			/*var scriptElem = document.createElement('script'); 
+			document.getElementsByTagName('head')[0].appendChild(scriptElem); 
+			scriptElem.text = xhrObj.responseText;
+			*/
+			var doc = this.doc,
+				 findscript = doc.getElementsByTagName('script')[0],
+				 stack = this.stack,
+				 len = this.stack_length,
+				 newscript;
+			
+			// Loop through the stack and insert each script in order into the DOM
+			for (var i = 0; i < len; i++) {
+				// Create new <script> node
+				newscript = doc.createElement("script");
+				
+				// Find the first <script> tag in the DOM and insert the new script before it.
+				// The following technique is the most effective way of locating where to insert new script tags into the DOM.
+				// Mainly because for this script to even be run there MUST have been an initial <script> tag!
+				findscript.parentNode.insertBefore(newscript, findscript);
+				
+				// Insert the loaded script content into the new <script> tag
+				newscript.text = stack[i];
 			}
 		},
 		
-		load: function(config){
+		/**
+		 * This is the only public user API method.
+		 * When called with a configuration object it will initialise the rest of the functions required to load the specified scripts
+		 * 
+		 * @param config { Object } user configuration
+		 * @return undefined {  } no explicitly returned value
+		 */
+	 	load: function(config) {
 			// Cache object lookup
 			var self = this,
 				 stack = this.stack,
+				 seconds,
 				 stacklen = this.stack_length,
 				 seconds_until_timeout;
 			
 			// If no object was passed through then show corresponding error...
-	 		if (typeof config === "undefined") {
+	 		if (typeof config === 'undefined') {
 				throw new Error("You have not complied with the provided API. You need to provide a 'configuration' object literal - please check the documentation!");
 			} 
 			
@@ -225,8 +306,11 @@
 			}
 			
 			// If an Array of URLs has been passed then we need to process each Array item individually (and then later we can execute in the correct order)
-			else if(Object.prototype.toString.call(config.url) === '[object Array]') {
+			else if (Object.prototype.toString.call(config.url) === '[object Array]') {
 			
+				// Default setting for the timeout allowed for each script is 5 seconds
+				seconds = config.seconds || 5;
+				
 				// Keep reference to length of the Array of URLs being passed in
 				stacklen = this.stack_length = config.url.length;
 			
@@ -235,26 +319,24 @@
 										
 					// Call the ajax function individually for each script specified (pass back through the corresponding settings)
 					this.ajax({ 
-						length: len, // used to help with the Array Splice method (for keeping dependancy order)
-						counter: i, // used for keeping dependancy order
+						length: len, // (NOT user defined) used to help with the Array Splice method (for keeping dependancy order)
+						counter: i, // (NOT user defined) used for keeping dependancy order
 						url: config.url[i], 
 						base: config.base
 					});
 					
 				}
 				
-				// Set a timer to check at a regular interval whether the scripts are loaded
-				this.timer = this.win.setInterval(this.check, 10);
-				
 				// Calculate total script wait length (each script has 5 seconds to load)
-				seconds_until_timeout = (stacklen * 5) * 1000; // Remember! timers use milliseconds, not seconds
+				seconds_until_timeout = (stacklen * seconds) * 1000; // Remember! timers use milliseconds, not seconds
 				
-				// After the allocated time has passed this 'check' function will no longer be called
-				// And we'll throw the list of errors to the developer
-				this.timeout = this.win.setTimeout(function(){
-					clearInterval(self.timer);
-					throw new Error("Seems that not all of the scripts you requested to be loaded have been successful? " + XHRl.errors);
+				// After the allocated time has passed the 'check' function will no longer be called.
+				this.timeout = this.win.setTimeout(function() {
+					self.timeout = null;
 				}, seconds_until_timeout);
+				
+				// Run a check whether the scripts are loaded (this function will recursively call itself)
+				this.check();
 				
 			} 
 			
@@ -270,4 +352,4 @@
 	// Expose XHRl to the global object
 	window.xhrl = XHRl;
 	
-}(this, this.document))
+}(this, this.document));

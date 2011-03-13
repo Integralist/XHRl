@@ -5,10 +5,17 @@
 	<meta charset="utf-8">
 </head>
 <body>
+	<pre>
+		{
+			url: { Array } an Array of script files to load (relative paths),
+			seconds: { Integer } number of seconds to wait 'per script' before timing out,
+			base: { String } if all script paths are the same then specify it (default is 'Assets/Scripts/')
+		}
+	</pre>
+
 	<script src="Assets/Scripts/xhrl.js"></script>
-	<script type="text/javascript">
-		//xhrl.load({ url: 'jquery.php' });
-		xhrl.load({ url: ['jquery2.php', 'library.php', 'test.js'] });
+	<script>
+		xhrl.load({ url: ['jquery.php', 'library.php', 'test.js'] });
 	</script>
 </body>
 </html>
