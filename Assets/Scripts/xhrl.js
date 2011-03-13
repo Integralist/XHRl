@@ -258,10 +258,7 @@
 			 * @return undefined {  } no explicitly returned value
 			 */
 		 	insert: function() {
-				/*var scriptElem = document.createElement('script'); 
-				document.getElementsByTagName('head')[0].appendChild(scriptElem); 
-				scriptElem.text = xhrObj.responseText;
-				*/
+				// Cache object lookup
 				var doc = this.doc,
 					 findscript = doc.getElementsByTagName('script')[0],
 					 stack = this.stack,
