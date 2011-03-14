@@ -20,6 +20,11 @@ I wrote this script not to compete with any of the existing script loaders, but 
 
 Just so you know, my main 'go to' script loader of choice is LABjs, and I still highly recommend it (it's got some awesome features, one of which is 'conditional loading').
 
+Limitations
+-----------
+
+One limitation of this script loader is that because it relies on XMLHttpRequest all scripts loaded must be hosted on your own domain (i.e. you can't call jQuery from the Google CDN). Now for my use cases this isn't a problem, but for some people this may be a big deal. Take it or leave it.
+
 Other Script Loaders
 --------------------
 
@@ -27,7 +32,8 @@ Here's a list of other script loaders I've looked at...
 
 * [LABjs](https://github.com/getify/LABjs)
 * [YepNope.js](https://github.com/SlexAxton/yepnope.js)
-* [Require.js](https://github.com/jrburke/requirejs)
-* [Head.js](https://github.com/headjs/headjs)
-* [Control.js](http://stevesouders.com/controljs/)
-* [Steal.js](https://github.com/jupiterjs/steal) (part of JMVC library)
+* [RequireJs](https://github.com/jrburke/requirejs)
+* [HeadJs](https://github.com/headjs/headjs)
+* [ControlJs](http://stevesouders.com/controljs/)
+* [Steal](https://github.com/jupiterjs/steal) (part of JMVC library)
+* [loadrunner](https://github.com/danwrong/loadrunner/)
