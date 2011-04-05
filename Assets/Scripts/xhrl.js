@@ -34,14 +34,57 @@
 			// Order of the dependancies
 			stack: [],
 			
-			// Errors
-			errors: [],
-			
 			// Length of the stack, used to check whether all scripts were successfully loaded
 			stack_length: null,
 			
 			// A timer which throws an error after the allocated timeout (e.g. once all ajax calls are made, the specified scripts have 'x' seconds to load)
 			timeout: null,
+			
+			// Check if we need to be in debug mode or not
+			debug: false,
+			
+			// Errors
+			errors: [],
+			
+			/**
+			 * Basic Error Handler
+			 * 
+			 * @param settings { Object } user configuration
+			 * @param settings { Object } user configuration
+			 * @return undefined {  } no explicitly returned value
+			 */
+			errorHandler: function(type, err) {
+				
+				// Keep reference to self for the following Closures
+				var self = this;
+				
+				// The first time errorHandler is called we need to manually push the error.
+				// We always push the error regardless of whether we're in debug mode or not.
+				__xhrl.errors.push({ type:type, error:err });
+					
+				// Check whether we're in debug mode or not
+				if (self.debug) {
+					
+					// The first time errorHandler is called we need to manually throw the error.
+					throw new Error(type + ':\n' + err);
+					
+					// ...the next time errorHandler is called it will have been overwritten... (saves us checking for debug mode over & over)
+					self.errorHandler = function(type, err) {
+						// Track the error AND highlight an issue to the user
+						__xhrl.errors.push({ type:type, error:err });
+						throw new Error(type + ':\n' + err);
+					};
+					
+				} else {
+				
+					// ...the next time errorHandler is called it will have been overwritten... (saves us checking for debug mode over & over)
+					self.errorHandler = function(type, err) {
+						// Track the error but otherwise don't highlight an issue to the user
+						__xhrl.errors.push({ type:type, error:err });
+					};
+					
+				}
+			},
 		
 			/**
 			 * XMLHttpRequest abstraction.
@@ -97,26 +140,6 @@
 					base: settings.base || 'Assets/Scripts/'
 				};
 				
-				// If we splice with an empty array then the re-insertions (dependancy order) break
-				// We need the array to have the same number of elements as scripts being processed for loading
-				if (config.length > 1) {
-					__xhrl.stack.length = config.length;
-				}
-				
-				// Create new cross-browser XMLHttpRequest instance
-				xhr = this.xhr();
-				
-				// Determine the full URL based on configuration object
-				url = config.base + config.url;
-				
-				// Open the asynchronous request
-				xhr.open('GET', url, true);
-				
-				// Initalize a callback which will fire in 5 seconds from now, cancelling the request (if it has not already occurred)
-				this.win.setTimeout(function() {
-					requestDone = true;
-				}, 5000);
-				
 				// Determine the success of the HTTP response
 				function httpSuccess(r) {
 					try {
@@ -133,18 +156,18 @@
 						// Safari returns an empty status if the file has not been modified
 						navigator.userAgent.indexOf('Safari') >= 0 && typeof r.status == 'undefined';
 					} catch(e){
-						// Throw a corresponding error
-						throw new Error("httpSuccess = " + e);
+						// Handle error
+						__xhrl.errorHandler('httpSuccess', e);
 					}
 					
 					// If checking the status failed, then assume that the request failed too
 					return false;
 				}
 				
-				// Throw a corresponding error when there is a problem loading the specified JavaScript file
+				// Handle error when there is a problem loading the specified JavaScript file
 				function onError(xhr) {
-					__xhrl.errors.push(url + " { failed } ");
-					throw new Error("XHR statusText = " + xhr.statusText);
+					__xhrl.errorHandler('URL failed', url);
+					__xhrl.errorHandler('XHR statusText', xhr.statusText);
 				}
 				
 				// xhr is direct access to the XMLHttpRequest object itself
@@ -166,15 +189,34 @@
 						}
 					}
 					else {
-						// If there is only one script to be processed then we simply splice it by zero and leave it
-						__xhrl.stack.splice(settings.counter, 0, xhr.responseText);
+						// If there is only one script to be processed then we simply set the zero index to the response text
+						__xhrl.stack[0] = xhr.responseText;
+						
+						// And we call the relevant method to insert the script into the DOM
+						__xhrl.insert();
 					}
 					
 				}
 				
+				// Create new cross-browser XMLHttpRequest instance
+				xhr = this.xhr();
+				
+				// Determine the full URL based on configuration object
+				url = config.base + config.url;
+				
+				// Open the asynchronous request
+				xhr.open('GET', url, true);
+				
+				// Initalize a callback which will fire in 5 seconds from now, cancelling the request (if it has not already occurred)
+				this.win.setTimeout(function() {
+					requestDone = true;
+				}, 5000);
+				
+				// Establish the connection to the server
+				xhr.send(null);
+				
 				// Watch for when the state of the document gets updated
 				xhr.onreadystatechange = function() {
-					// Wait until the data is fully loaded, and make sure that the request hasn't already timed out
 					if (xhr.readyState == 4 && !requestDone) {
 						// Check to see if the request was successful
 						if (httpSuccess(xhr)) {
@@ -190,16 +232,13 @@
 						xhr = null;
 					} else if (requestDone && xhr.readyState != 4) {
 						// If the script timed out then keep a log of it so the developer can query this and handle any exceptions
-						__xhrl.errors.push(url + " { timed out } ");
+						__xhrl.errorHandler('URL timeout: readyState = ' + xhr.readyState, url);
 						
 						// Bail out of the request immediately
 						xhr.onreadystatechange = null;
 					}
 				};
 				
-				// Establish the connection to the server
-				xhr.send(null);
-	
 			},
 			
 			/**
@@ -210,7 +249,7 @@
 		 	check: function() {
 				// Do a quick check for any failures
 				if (this.errors.length) {
-					throw new Error("Seems there was a problem trying to load one of the provided scripts.");
+					__xhrl.errorHandler('Error log not empty', 'Seems there was a problem trying to load one of the provided scripts');
 					return;
 				}
 				
@@ -236,11 +275,11 @@
 						else {
 							// Does it look like a 'timeout' issue...
 							if (!this.errors.length) {
-								throw new Error("Looks like one of your scripts timed out.");
+								__xhrl.errorHandler('Script timeout', 'Looks like one of your scripts timed out');
 							} 
 							// ...otherwise show a generic error and see if the 'errors' log has anything that can help
 							else {
-								throw new Error("Seems that not all of the scripts you requested to be loaded have been successful? \n" + this.errors);
+								__xhrl.errorHandler('Script load failure', this.errors);
 							}
 							return;
 						}
@@ -310,15 +349,28 @@
 					throw new Error("You need to provide a URL for a JavaScript file to be loaded by the 'xhrl' script loader");
 				}
 				
-				// If an Array of URLs has been passed then we need to process each Array item individually (and then later we can execute in the correct order)
-				else if (Object.prototype.toString.call(config.url) === '[object Array]') {
+				// The above two checks superseed whether debug is set to false or not.
+				// This is because there MUST be a config object passed through, as the script wont function without it.
+				// And because of this I think it's fair to force an error onto the developer if they haven't used the API correctly.
 				
+				// If an Array of URLs has been passed then we need to process each Array item individually (and then later we can execute in the correct order)
+				// In the below expression we not only check for an Array but that the Array length is greater than 1 (for those users who incorrectly use the API)
+				else if (Object.prototype.toString.call(config.url) === '[object Array]' && config.url.length > 1) {
+					
+					// Switch over to debug mode if required
+					if (config.debug) {
+						self.debug = true;
+					}
+					
 					// Default setting for the timeout allowed for each script is 5 seconds
 					seconds = config.seconds || 5;
 					
 					// Keep reference to length of the Array of URLs being passed in
 					stacklen = __xhrl.stack_length = config.url.length;
-				
+					
+					// Set the length of the stack (so the array will consist of x number of undefined items - which we'll splice() later)
+					stack.length = stacklen;
+					
 					// Loop through Array accessing the specified scripts
 					for (var i = 0, len = stacklen; i < len; i++) {
 											
@@ -334,7 +386,7 @@
 					
 					// Calculate total script wait length (each script has 5 seconds to load)
 					seconds_until_timeout = (stacklen * seconds) * 1000; // Remember! timers use milliseconds, not seconds
-					
+
 					// After the allocated time has passed the 'check' function will no longer be called.
 					self.timeout = self.win.setTimeout(function() {
 						self.timeout = null;
@@ -347,12 +399,26 @@
 				
 				// Otherwise call ajax method and pass through configuration settings
 				else {
+					
+					// Switch over to debug mode if required
+					if (config.debug) {
+						self.debug = true;
+					}
+					
+					// Make sure the stack length is set to one (as that is the number of scripts being called)
+					__xhrl.stack_length = 1;
+					
 					self.ajax(config);
+					
 				}
 			
-			}
+			},
+			
+			// Let users have access to the list of errors
+			errors: __xhrl.errors
+			
 		};
-		
+	
 	}());
 	
 	// Expose XHRl to the global object
