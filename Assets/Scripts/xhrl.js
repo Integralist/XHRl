@@ -46,6 +46,9 @@
 			// Errors
 			errors: [],
 			
+			// Number of successfully loaded scripts
+			success: 0,
+			
 			/**
 			 * Basic Error Handler
 			 * 
@@ -126,8 +129,8 @@
 		 	ajax: function(settings) {
 		 	
 		 		// JavaScript engine will 'hoist' variables so we'll be specific and declare them here
-		 		var xhr, url, requestDone;
-		 		
+		 		var self = this, xhr, url, requestDone, promise = new Promise();
+
 		 		// Load the config object with defaults, if no values were provided by the user
 				config = {
 					// This is used to determine how big the stack array needs to be
@@ -196,6 +199,8 @@
 						__xhrl.insert();
 					}
 					
+					promise.resolve(xhr);
+					
 				}
 				
 				// Create new cross-browser XMLHttpRequest instance
@@ -220,74 +225,34 @@
 					if (xhr.readyState == 4 && !requestDone) {
 						// Check to see if the request was successful
 						if (httpSuccess(xhr)) {
-							// Execute the success callback
+							// Execute the success handler
 							onSuccess(xhr);
 						}
 						// Otherwise, an error occurred, so execute the error callback
 						else {
+							// Reject the Promise
+							promise.reject('httpSuccess');
+							
+							// Execute the error handler
 							onError(xhr);
 						}
 						
 						// Clean up after ourselves, to avoid memory leaks
 						xhr = null;
 					} else if (requestDone && xhr.readyState != 4) {
-						// If the script timed out then keep a log of it so the developer can query this and handle any exceptions
-						__xhrl.errorHandler('URL timeout: readyState = ' + xhr.readyState, url);
+						// Reject the Promise
+						promise.reject('timeout');
+						
+						// Clear main timeout (which runs after the total allocated time for all scripts)
+						self.win.clearTimeout(self.timeout);
+						self.timeout = null;
 						
 						// Bail out of the request immediately
 						xhr.onreadystatechange = null;
 					}
 				};
 				
-			},
-			
-			/**
-			 * Self-executing (i.e. recursive) function which checks stack Array to see if all specified scripts have been loaded
-			 * 
-			 * @return undefined {  } no explicitly returned value, but will throw an error if any found
-			 */
-		 	check: function() {
-				// Do a quick check for any failures
-				if (this.errors.length) {
-					__xhrl.errorHandler('Error log not empty', 'Seems there was a problem trying to load one of the provided scripts');
-					return;
-				}
-				
-				// Cache object lookup
-				var self = this,
-					 i = this.stack_length,
-					 stack = this.stack;
-				
-				// check the stack for any scripts not yet loaded
-				while (i--) {
-					// If a script is still undefined then break out of the loop as the scripts are still downloading...
-					if (stack[i] == undefined) {
-						// Check timeout limit hasn't been reached
-						if (this.timeout !== null) {
-							// Call this function again
-							this.win.setTimeout(function() {
-								self.check();
-							}, 10);
-							
-							return;
-						} 
-						// Otherwise the timeout limit has been reached and we must show the developer a list of errors 
-						else {
-							// Does it look like a 'timeout' issue...
-							if (!this.errors.length) {
-								__xhrl.errorHandler('Script timeout', 'Looks like one of your scripts timed out');
-							} 
-							// ...otherwise show a generic error and see if the 'errors' log has anything that can help
-							else {
-								__xhrl.errorHandler('Script load failure', this.errors);
-							}
-							return;
-						}
-					}
-				}
-				
-				// If we've reached this point it looks like all scripts are loaded and ready to be inserted into the page
-				this.insert();
+				return promise;
 				
 			},
 			
@@ -336,8 +301,7 @@
 				var self = __xhrl,
 					 stack = self.stack,
 					 seconds,
-					 stacklen = self.stack_length,
-					 seconds_until_timeout;
+					 stacklen = self.stack_length;
 				
 				// If no object was passed through then show corresponding error...
 		 		if (typeof config === 'undefined') {
@@ -371,6 +335,26 @@
 					// Set the length of the stack (so the array will consist of x number of undefined items - which we'll splice() later)
 					stack.length = stacklen;
 					
+					function loadSuccess(response) {
+						// Increment the number of successfully loaded scripts
+						self.success++;
+						
+						// If we've successfully loaded all scripts then finish/clean up
+						if (self.success === stacklen) {
+							self.win.clearTimeout(self.timeout);
+							self.timeout = null;
+							
+							// Insert the scripts
+							self.insert();
+						}
+					}
+					
+					function loadFailure(response) {
+						// If the script timed out then keep a log of it 
+						// so the developer can query this and handle any exceptions
+						__xhrl.errorHandler(response);
+					}
+					
 					// Loop through Array accessing the specified scripts
 					for (var i = 0, len = stacklen; i < len; i++) {
 											
@@ -380,20 +364,9 @@
 							counter: i, // (NOT user defined) used for keeping dependancy order
 							url: config.url[i], 
 							base: config.base
-						});
+						}).then(loadSuccess, loadFailure);
 						
 					}
-					
-					// Calculate total script wait length (each script has 5 seconds to load)
-					seconds_until_timeout = (stacklen * seconds) * 1000; // Remember! timers use milliseconds, not seconds
-
-					// After the allocated time has passed the 'check' function will no longer be called.
-					self.timeout = self.win.setTimeout(function() {
-						self.timeout = null;
-					}, seconds_until_timeout);
-					
-					// Run a check whether the scripts are loaded (this function will recursively call itself)
-					self.check();
 					
 				} 
 				
