@@ -4,7 +4,7 @@
 Description
 -----------
 
-AJAX based Script Loader.
+AJAX based Script Loader (Uses basic Promises implementation).
 
 Reasons for building 'yet another' dynamic script loader:
 

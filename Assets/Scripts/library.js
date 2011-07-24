@@ -1,2 +1,2 @@
 var jQuery = jQuery || '';
-alert('Has jQuery been loaded? \n' + jQuery);
+alert('library.js\nHas jQuery been loaded? \n' + !!jQuery + '\n' + jQuery);

@@ -37,9 +37,6 @@
 			// Length of the stack, used to check whether all scripts were successfully loaded
 			stack_length: null,
 			
-			// A timer which throws an error after the allocated timeout (e.g. once all ajax calls are made, the specified scripts have 'x' seconds to load)
-			timeout: null,
-			
 			// Check if we need to be in debug mode or not
 			debug: false,
 			
@@ -50,40 +47,50 @@
 			success: 0,
 			
 			/**
+			 * Basic Promise implementation.
+			 * See the prototype chain
+			 * 
+			 * @return undefined {  } no explicitly returned value
+			 */
+			Promise: function() {
+				this._thens = [];
+			},
+			
+			/**
 			 * Basic Error Handler
 			 * 
 			 * @param settings { Object } user configuration
 			 * @param settings { Object } user configuration
 			 * @return undefined {  } no explicitly returned value
 			 */
-			errorHandler: function(type, err) {
+			errorHandler: function(script, type, err) {
 				
 				// Keep reference to self for the following Closures
 				var self = this;
 				
 				// The first time errorHandler is called we need to manually push the error.
 				// We always push the error regardless of whether we're in debug mode or not.
-				__xhrl.errors.push({ type:type, error:err });
+				__xhrl.errors.push({ script:script, type:type, error:err });
 					
 				// Check whether we're in debug mode or not
 				if (self.debug) {
 					
 					// The first time errorHandler is called we need to manually throw the error.
-					throw new Error(type + ':\n' + err);
+					throw new Error('\nBefore function rewrite\nScript: ' + script + '\nType: ' + type + '\nError: ' + err);
 					
 					// ...the next time errorHandler is called it will have been overwritten... (saves us checking for debug mode over & over)
-					self.errorHandler = function(type, err) {
+					self.errorHandler = function(script, type, err) {
 						// Track the error AND highlight an issue to the user
 						__xhrl.errors.push({ type:type, error:err });
-						throw new Error(type + ':\n' + err);
+						throw new Error('Script: ' + script + '\nType: ' + type + '\nError: ' + err);
 					};
 					
 				} else {
 				
 					// ...the next time errorHandler is called it will have been overwritten... (saves us checking for debug mode over & over)
-					self.errorHandler = function(type, err) {
+					self.errorHandler = function(script, type, err) {
 						// Track the error but otherwise don't highlight an issue to the user
-						__xhrl.errors.push({ type:type, error:err });
+						__xhrl.errors.push({ script:script, type:type, error:err });
 					};
 					
 				}
@@ -129,7 +136,12 @@
 		 	ajax: function(settings) {
 		 	
 		 		// JavaScript engine will 'hoist' variables so we'll be specific and declare them here
-		 		var self = this, xhr, url, requestDone, promise = new Promise();
+		 		var self = this, 
+		 			 config,
+		 			 xhr, 
+		 			 url, 
+		 			 requestDone, 
+		 			 promise = new this.Promise(); // Create new instance of Promise constructor
 
 		 		// Load the config object with defaults, if no values were provided by the user
 				config = {
@@ -160,17 +172,11 @@
 						navigator.userAgent.indexOf('Safari') >= 0 && typeof r.status == 'undefined';
 					} catch(e){
 						// Handle error
-						__xhrl.errorHandler('httpSuccess', e);
+						__xhrl.errorHandler(config.url, 'httpSuccess function', e);
 					}
 					
 					// If checking the status failed, then assume that the request failed too
 					return false;
-				}
-				
-				// Handle error when there is a problem loading the specified JavaScript file
-				function onError(xhr) {
-					__xhrl.errorHandler('URL failed', url);
-					__xhrl.errorHandler('XHR statusText', xhr.statusText);
 				}
 				
 				// xhr is direct access to the XMLHttpRequest object itself
@@ -190,6 +196,11 @@
 							// The splice method allows us to insert our scripts into the Array but will remove the Array item following it because it'll be an 'undefined' item
 							__xhrl.stack.splice(settings.counter, 1, xhr.responseText);
 						}
+						
+						// We send back the Promise here (rather than outside the if/else statement)
+						// because otherwise if there is only one script to load then when the else block
+						// is run we'll end up executing the insert() method twice.
+						promise.resolve(xhr);
 					}
 					else {
 						// If there is only one script to be processed then we simply set the zero index to the response text
@@ -198,8 +209,6 @@
 						// And we call the relevant method to insert the script into the DOM
 						__xhrl.insert();
 					}
-					
-					promise.resolve(xhr);
 					
 				}
 				
@@ -231,21 +240,14 @@
 						// Otherwise, an error occurred, so execute the error callback
 						else {
 							// Reject the Promise
-							promise.reject('httpSuccess');
-							
-							// Execute the error handler
-							onError(xhr);
+							promise.reject({ script:config.url, type:'httpSuccess failure', error:xhr });
 						}
 						
 						// Clean up after ourselves, to avoid memory leaks
 						xhr = null;
 					} else if (requestDone && xhr.readyState != 4) {
 						// Reject the Promise
-						promise.reject('timeout');
-						
-						// Clear main timeout (which runs after the total allocated time for all scripts)
-						self.win.clearTimeout(self.timeout);
-						self.timeout = null;
+						promise.reject({ script:config.url, type:'timeout', error:xhr });
 						
 						// Bail out of the request immediately
 						xhr.onreadystatechange = null;
@@ -300,7 +302,6 @@
 		 		// Cache object lookup
 				var self = __xhrl,
 					 stack = self.stack,
-					 seconds,
 					 stacklen = self.stack_length;
 				
 				// If no object was passed through then show corresponding error...
@@ -326,9 +327,6 @@
 						self.debug = true;
 					}
 					
-					// Default setting for the timeout allowed for each script is 5 seconds
-					seconds = config.seconds || 5;
-					
 					// Keep reference to length of the Array of URLs being passed in
 					stacklen = __xhrl.stack_length = config.url.length;
 					
@@ -341,9 +339,6 @@
 						
 						// If we've successfully loaded all scripts then finish/clean up
 						if (self.success === stacklen) {
-							self.win.clearTimeout(self.timeout);
-							self.timeout = null;
-							
 							// Insert the scripts
 							self.insert();
 						}
@@ -352,7 +347,7 @@
 					function loadFailure(response) {
 						// If the script timed out then keep a log of it 
 						// so the developer can query this and handle any exceptions
-						__xhrl.errorHandler(response);
+						__xhrl.errorHandler(response.script, response.type, response.error);
 					}
 					
 					// Loop through Array accessing the specified scripts
@@ -388,11 +383,86 @@
 			},
 			
 			// Let users have access to the list of errors
-			errors: __xhrl.errors
+			errors: __xhrl.errors,
+			
+			// Let users have access to the Promise implementation
+			// Also means we can use the prototype chain as our method of implementation
+			Promise: __xhrl.Promise
 			
 		};
 	
 	}());
+	
+	// Complete the basic implementation of the Promises design pattern
+	XHRl.Promise.prototype = {
+		/**
+		 * This method stores the callback functions to be executed once a Promise is resolved/rejected.
+		 * 
+		 * @param onResolve { Function } method to be notified when the promise is complete
+		 * @param onReject { Function } method to be notified when the promise has failed
+		 * @return this { Object } the Promise constructor
+		 */
+		then: function (onResolve, onReject) {
+			this._thens.push({ resolve: onResolve, reject: onReject });
+			return this;
+		},
+	
+		/**
+		 * This method is called when a Promise is resolved.
+		 * The resolved value (if any) is passed by the resolver to this method.
+		 * All waiting onResolve callbacks are called and any future ones are, too, each being passed the resolved value.
+		 * 
+		 * @param val { Primitive } the resolved value could be any valid JavaScript primitive (Boolean, String, Number, Null, Undefined) or an Object.
+		 * @return undefined {  } no explicitly returned value
+		 */
+		resolve: function (val) { 
+			this._complete('resolve', val); 
+		},
+	
+		/**
+		 * This method is called when a Promise cannot be resolved.
+		 * Typically, you'd pass an exception as the single parameter, but any other argument, including none at all, is acceptable.
+		 * All waiting (and all future) onReject callbacks are called when reject() is called and are passed the exception parameter.
+		 * 
+		 * @param ex { x } the exception value
+		 * @return undefined {  } no explicitly returned value
+		 */
+		reject: function (ex) { 
+			this._complete('reject', ex); 
+		},
+	
+		/**
+		 * This is a private method which determines which methods to be executed.
+		 * 
+		 * @param which { String } either 'resolve' or 'reject'
+		 * @param arg { Primitive } the resolved value could be any valid JavaScript primitive (Boolean, String, Number, Null, Undefined) or an Object.
+		 * @return undefined {  } no explicitly returned value
+		 */
+		_complete: function (which, arg) {
+			// Switch over to sync then()
+			this.then = which === 'resolve' ?
+				function (resolve, reject) { 
+					resolve && resolve(arg); return this; 
+				} :
+				function (resolve, reject) { 
+					reject && reject(arg); return this; 
+				};
+				
+			// Disallow multiple calls to resolve or reject
+			this.resolve = this.reject = function () { 
+				throw new Error('Promise already completed.'); 
+			};
+				
+			// Complete all waiting (async) then()s
+			var aThen, i = 0;
+			
+			while (aThen = this._thens[i++]) { 
+				aThen[which] && aThen[which](arg); 
+			}
+			
+			delete this._thens;
+		}
+	}
 	
 	// Expose XHRl to the global object
 	window.xhrl = XHRl;
