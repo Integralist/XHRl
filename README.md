@@ -1,5 +1,5 @@
-[Integralist](http://www.integralist.co.uk/) - XHRl
-================================
+XHRl
+====
 
 Description
 -----------
@@ -18,12 +18,10 @@ Disclaimer
 
 I wrote this script not to compete with any of the existing script loaders, but to learn something new by the virtue of trying to build one for myself.
 
-Just so you know, my main 'go to' script loader of choice is LABjs, and I still highly recommend it (it's got some awesome features, one of which is 'conditional loading').
-
 Limitations
 -----------
 
-One limitation of this script loader is that because it relies on XMLHttpRequest all scripts loaded must be hosted on your own domain (i.e. you can't call jQuery from the Google CDN). Now for my use cases this isn't a problem, but for some people this may be a big deal. Take it or leave it.
+One limitation of this script loader is that because it relies on `XMLHttpRequest` all scripts loaded must be hosted on your own domain (i.e. you can't call jQuery from the Google CDN). Now for my use cases this isn't a problem, but for some people this may be a big deal. Take it or leave it.
 
 Other Script Loaders
 --------------------
