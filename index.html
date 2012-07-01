@@ -1,0 +1,82 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>XHRl by Integralist</title>
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/pygment_trac.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+    <script src="javascripts/respond.js"></script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <!--[if lt IE 8]>
+    <link rel="stylesheet" href="stylesheets/ie.css">
+    <![endif]-->
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+  </head>
+  <body>
+      <div id="header">
+        <nav>
+          <li class="fork"><a href="https://github.com/Integralist/XHRl">View On GitHub</a></li>
+          <li class="downloads"><a href="https://github.com/Integralist/XHRl/zipball/master">ZIP</a></li>
+          <li class="downloads"><a href="https://github.com/Integralist/XHRl/tarball/master">TAR</a></li>
+          <li class="title">DOWNLOADS</li>
+        </nav>
+      </div><!-- end header -->
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>XHRl</h1>
+          <p>AJAX based Script Loader</p>
+          <hr>
+          <span class="credits left">Project maintained by <a href="https://github.com/Integralist">Integralist</a></span>
+          <span class="credits right">Hosted on GitHub Pages &mdash; Theme by <a href="http://twitter.com/#!/michigangraham">mattgraham</a></span>
+        </div>
+
+        <h1>XHRl</h1>
+
+<h2>Description</h2>
+
+<p>AJAX based Script Loader (Uses basic Promises implementation).</p>
+
+<p>Reasons for building 'yet another' dynamic script loader:</p>
+
+<ul>
+<li>I wanted to learn how to write one myself</li>
+<li>I wanted a script loader that actually informed the developer of errors! (aka jQuery which cryptically hides errors)</li>
+<li>I wanted to avoid typical browser sniffs used to keep execution order (e.g. LABjs)</li>
+<li>I wanted to avoid using hacks (<a href="http://www.phpied.com/preload-then-execute/">such as...</a>) - used in a few script loaders.</li>
+</ul><h2>Disclaimer</h2>
+
+<p>I wrote this script not to compete with any of the existing script loaders, but to learn something new by the virtue of trying to build one for myself.</p>
+
+<h2>Limitations</h2>
+
+<p>One limitation of this script loader is that because it relies on <code>XMLHttpRequest</code> all scripts loaded must be hosted on your own domain (i.e. you can't call jQuery from the Google CDN). Now for my use cases this isn't a problem, but for some people this may be a big deal. Take it or leave it.</p>
+
+<h2>Other Script Loaders</h2>
+
+<p>Here's a list of other script loaders I've looked at...</p>
+
+<ul>
+<li><a href="https://github.com/getify/LABjs">LABjs</a></li>
+<li><a href="https://github.com/SlexAxton/yepnope.js">YepNope.js</a></li>
+<li><a href="https://github.com/jrburke/requirejs">RequireJs</a></li>
+<li><a href="https://github.com/headjs/headjs">HeadJs</a></li>
+<li><a href="http://stevesouders.com/controljs/">ControlJs</a></li>
+<li>
+<a href="https://github.com/jupiterjs/steal">Steal</a> (part of JMVC library)</li>
+<li><a href="https://github.com/danwrong/loadrunner/">loadrunner</a></li>
+</ul>
+      </section>
+
+    </div>
+    <!--[if !IE]><script>fixScale(document);</script><!--<![endif]-->
+    
+  </body>
+</html>
